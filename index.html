@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Avaliação de Desempenho — Espaço Fácil</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Serif+Display&display=swap');
+  :root {
+    --dark:#002E24; --green:#007D59; --amber:#F9B112;
+    --white:#FFFFFF; --light:#F0F5F3; --lightb:#EDF7F2;
+    --lighta:#FDF6E3; --bg:#F4F7F5; --border:#D1E5DC;
+    --text:#1A1A1A; --muted:#5A6B65;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);min-height:100vh;}
+
+  .page-header{background:var(--dark);position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,46,36,0.3);}
+  .page-header .inner{max-width:860px;margin:0 auto;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+  .brand{color:var(--amber);font-size:13px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;}
+  .header-sub{color:rgba(255,255,255,0.4);font-size:11px;}
+  .amber-strip{height:3px;background:var(--amber);}
+
+  .hero{background:var(--dark);padding:44px 32px 48px;}
+  .hero .inner{max-width:860px;margin:0 auto;}
+  .hero h1{font-family:'DM Serif Display',serif;font-size:34px;color:var(--white);line-height:1.2;margin-bottom:12px;}
+  .hero h1 span{color:var(--amber);}
+  .hero p{font-size:13.5px;color:rgba(255,255,255,0.6);line-height:1.75;max-width:580px;}
+
+  .prog-bar{background:var(--dark);padding:0 32px 22px;}
+  .prog-bar .inner{max-width:860px;margin:0 auto;}
+  .prog-track{background:rgba(255,255,255,0.1);border-radius:2px;height:3px;}
+  .prog-fill{background:var(--amber);height:3px;border-radius:2px;transition:width 0.4s ease;width:0%;}
+  .prog-label{font-size:10px;color:rgba(255,255,255,0.35);margin-top:6px;letter-spacing:0.5px;}
+
+  .container{max-width:860px;margin:0 auto;padding:28px 32px 64px;}
+
+  .bloco{background:var(--white);border-radius:12px;margin-bottom:18px;overflow:hidden;border:1px solid var(--border);}
+  .bloco-hdr{padding:14px 22px;display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--border);}
+  .bloco-hdr.dark{background:var(--dark);}
+  .bloco-hdr.green{background:var(--green);}
+  .bloco-num{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--amber);flex-shrink:0;}
+  .bloco-hdr.green .bloco-num{color:var(--amber);}
+  .bloco-title{font-size:13px;font-weight:600;color:var(--white);}
+  .bloco-sub{font-size:11px;color:rgba(255,255,255,0.5);margin-top:1px;}
+  .bloco-body{padding:22px;}
+
+  .field{margin-bottom:18px;}
+  .field:last-child{margin-bottom:0;}
+  label{display:block;font-size:12px;font-weight:600;color:var(--dark);letter-spacing:0.3px;margin-bottom:6px;}
+  label .req{color:var(--amber);margin-left:2px;}
+  label .hint{display:block;font-size:11px;font-weight:400;color:var(--muted);margin-top:2px;font-style:italic;}
+  input[type="text"],select,textarea{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--white);transition:border-color 0.2s,box-shadow 0.2s;outline:none;-webkit-appearance:none;}
+  input:focus,select:focus,textarea:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(0,125,89,0.1);}
+  select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235A6B65' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;cursor:pointer;}
+  textarea{resize:vertical;min-height:88px;line-height:1.65;}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .field-error{font-size:11px;color:#c0392b;margin-top:4px;display:none;}
+  input.error,select.error{border-color:#c0392b;}
+
+  /* indicadores */
+  .ind-table{width:100%;border-collapse:collapse;}
+  .ind-table th{font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1px;text-transform:uppercase;text-align:left;padding:8px 10px;background:var(--light);border-bottom:1px solid var(--border);}
+  .ind-table td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  .ind-table tr:last-child td{border-bottom:none;}
+  .ind-table input{padding:8px 10px;font-size:13px;border-radius:6px;}
+
+  /* colaboradora accordion */
+  .colab-section{background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden;transition:box-shadow 0.2s;}
+  .colab-section.open{box-shadow:0 4px 20px rgba(0,46,36,0.1);}
+  .colab-hdr{padding:13px 18px;display:flex;align-items:center;gap:11px;cursor:pointer;user-select:none;transition:background 0.15s;}
+  .colab-hdr:hover{background:var(--light);}
+  .colab-av{width:36px;height:36px;border-radius:50%;background:var(--dark);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--amber);flex-shrink:0;}
+  .colab-name{font-size:13px;font-weight:600;color:var(--dark);}
+  .colab-status-txt{font-size:11px;color:var(--muted);margin-top:1px;}
+  .badge{margin-left:auto;font-size:10px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase;padding:3px 10px;border-radius:20px;background:var(--border);color:var(--muted);flex-shrink:0;}
+  .badge.andamento{background:#FDF6E3;color:#7A5800;}
+  .badge.done{background:var(--lightb);color:var(--green);}
+  .colab-toggle{color:var(--muted);font-size:16px;transition:transform 0.3s;flex-shrink:0;margin-left:8px;}
+  .colab-section.open .colab-toggle{transform:rotate(180deg);}
+  .colab-body{display:none;padding:22px;border-top:1px solid var(--border);}
+  .colab-section.open .colab-body{display:block;}
+
+  /* perguntas */
+  .sec-label{font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--dark);border-bottom:2px solid var(--amber);padding-bottom:5px;margin-bottom:14px;}
+  .pq-card{border-radius:8px;padding:15px;margin-bottom:12px;border-left:3px solid var(--green);background:var(--light);}
+  .pq-card.amb{border-left-color:var(--amber);}
+  .pq-card.drk{border-left-color:var(--dark);}
+  .pq-num{font-size:9px;font-weight:600;color:var(--green);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+  .pq-card.amb .pq-num{color:#7A5800;}
+  .pq-card.drk .pq-num{color:var(--dark);}
+  .pq-text{font-size:13px;font-weight:600;color:var(--dark);margin-bottom:3px;line-height:1.4;}
+  .pq-hint{font-size:11px;color:var(--muted);font-style:italic;margin-bottom:9px;}
+  .pq-card textarea{background:var(--white);}
+
+  .divider{height:1px;background:var(--border);margin:18px 0;}
+
+  .btn-concluir{background:var(--dark);color:var(--white);border:none;padding:10px 22px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:background 0.2s;}
+  .btn-concluir:hover{background:#003d30;}
+
+  .auto-save-notice{font-size:11px;color:var(--green);display:none;margin-top:6px;}
+  .auto-save-notice.show{display:inline;}
+
+  .submit-area{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:26px;text-align:center;margin-top:8px;}
+  .submit-area p{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.65;}
+  .btn-submit{background:var(--dark);color:var(--white);border:none;padding:14px 40px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;letter-spacing:0.5px;border-radius:8px;cursor:pointer;transition:background 0.2s,transform 0.1s;}
+  .btn-submit:hover{background:#003d30;}
+  .btn-submit:active{transform:scale(0.98);}
+  .btn-submit.loading{opacity:0.6;pointer-events:none;}
+  .btn-amber{color:var(--amber);}
+
+  #success-screen{display:none;max-width:860px;margin:80px auto;padding:0 32px;text-align:center;}
+  .success-icon{width:70px;height:70px;background:var(--dark);border-radius:50%;margin:0 auto 22px;display:flex;align-items:center;justify-content:center;font-size:28px;}
+  #success-screen h2{font-family:'DM Serif Display',serif;font-size:28px;color:var(--dark);margin-bottom:10px;}
+  #success-screen p{font-size:14px;color:var(--muted);line-height:1.7;}
+
+  @media(max-width:600px){
+    .container{padding:16px 16px 48px;}
+    .field-row{grid-template-columns:1fr;}
+    .hero{padding:28px 20px;}
+    .prog-bar{padding:0 20px 18px;}
+    .page-header .inner{padding:13px 20px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="form-screen">
+  <div class="page-header">
+    <div class="inner">
+      <div><div class="brand">Espaço Fácil</div><div class="header-sub">Avaliação de Desempenho · Mensal</div></div>
+    </div>
+    <div class="amber-strip"></div>
+  </div>
+
+  <div class="hero">
+    <div class="inner">
+      <h1>Formulário de <span>Avaliação</span><br>de Desempenho</h1>
+      <p>Este formulário faz parte do ciclo mensal de avaliação da Espaço Fácil. Preencha com base no que você observou ao longo do mês. As respostas são salvas automaticamente — você pode fechar e continuar depois sem perder nada.</p>
+    </div>
+  </div>
+
+  <div class="prog-bar">
+    <div class="inner">
+      <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
+      <div class="prog-label" id="progLabel">0 de 11 colaboradoras preenchidas</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <form id="mainForm" novalidate>
+
+      <!-- IDENTIFICAÇÃO -->
+      <div class="bloco">
+        <div class="bloco-hdr dark">
+          <div class="bloco-num">01</div>
+          <div><div class="bloco-title">Identificação</div><div class="bloco-sub">Líder, departamento e período avaliado</div></div>
+        </div>
+        <div class="bloco-body">
+          <div class="field-row">
+            <div class="field">
+              <label>Seu nome <span class="req">*</span></label>
+              <input type="text" id="lider_nome" placeholder="Nome completo" required>
+              <div class="field-error" id="err_lider">Campo obrigatório</div>
+            </div>
+            <div class="field">
+              <label>Departamento <span class="req">*</span></label>
+              <select id="departamento" required>
+                <option value="">Selecione</option>
+                <option>Comercial</option><option>Operacional</option><option>Atendimento</option>
+                <option>Marketing</option><option>Recursos Humanos</option><option>Instalações</option>
+              </select>
+              <div class="field-error" id="err_dept">Campo obrigatório</div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Mês de referência <span class="req">*</span></label>
+            <select id="mes_ref" required>
+              <option value="">Selecione o mês</option>
+              <option>Janeiro 2026</option><option>Fevereiro 2026</option><option>Março 2026</option>
+              <option>Abril 2026</option><option>Maio 2026</option><option>Junho 2026</option>
+              <option>Julho 2026</option><option>Agosto 2026</option><option>Setembro 2026</option>
+              <option>Outubro 2026</option><option>Novembro 2026</option><option>Dezembro 2026</option>
+            </select>
+            <div class="field-error" id="err_mes">Campo obrigatório</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLABORADORAS -->
+      <div class="bloco">
+        <div class="bloco-hdr green">
+          <div class="bloco-num">02</div>
+          <div><div class="bloco-title">Avaliação das colaboradoras</div><div class="bloco-sub">Clique em cada nome para abrir · Rascunho salvo automaticamente</div></div>
+        </div>
+        <div class="bloco-body" style="padding:14px;">
+          <div id="colabs-container"></div>
+        </div>
+      </div>
+
+      <!-- ENVIO -->
+      <div class="submit-area">
+        <p>As respostas são salvas automaticamente enquanto você preenche.<br>Quando terminar todas as colaboradoras, clique em enviar.</p>
+        <button type="submit" class="btn-submit" id="submitBtn">
+          Enviar avaliações <span class="btn-amber">→</span>
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<div id="success-screen">
+  <div class="success-icon">✓</div>
+  <h2>Avaliações enviadas!</h2>
+  <p>As respostas foram registradas na planilha.<br>Obrigada pelo preenchimento cuidadoso.</p>
+</div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyDUBSXkNbXhsDibcYTaauxitWSCe2yY2i9k0rIAMq6CkjbMGVuq26iCcZPdevGF4cj/exec';
+const STORAGE_KEY = 'ef_avaliacao_v2';
+
+const COLABORADORAS = [
+  "Júlia Gabriela Dos Santos",
+  "Wanderlea Dos Santos Da Silveira",
+  "Paula Briani Herculano Nocelli",
+  "Josiane Elena Braz",
+  "Jéssica Pires Santoro Andrade",
+  "Fabricia Filomena de Souza Barbosa",
+  "Simone de Campos Constantino",
+  "Eliziane Goncalves de Moura",
+  "Antônio Francisco de Brito Neto",
+  "Gabriele Vitória Fernandes Martins",
+  "Camila Renata Adriano Santos Pereira"
+];
+
+function initials(n){const p=n.trim().split(' ');return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase();}
+
+// ── SALVAR / CARREGAR RASCUNHO ───────────────────────────────────────────────
+function salvarRascunho(){
+  const data = {
+    lider: document.getElementById('lider_nome').value,
+    dept:  document.getElementById('departamento').value,
+    mes:   document.getElementById('mes_ref').value,
+    colabs: {}
+  };
+  COLABORADORAS.forEach((_,i) => {
+    data.colabs[i] = {
+      concluida: concluidas.has(i),
+      ind: [1,2,3].map(n => ({
+        nome:      document.querySelector(`[name="c${i}_ind${n}_nome"]`)?.value||'',
+        esperado:  document.querySelector(`[name="c${i}_ind${n}_esp"]`)?.value||'',
+        resultado: document.querySelector(`[name="c${i}_ind${n}_res"]`)?.value||''
+      })),
+      p1:    document.querySelector(`[name="c${i}_p1"]`)?.value||'',
+      p2:    document.querySelector(`[name="c${i}_p2"]`)?.value||'',
+      p3:    document.querySelector(`[name="c${i}_p3"]`)?.value||'',
+      frase: document.querySelector(`[name="c${i}_frase"]`)?.value||'',
+      just:  document.querySelector(`[name="c${i}_just"]`)?.value||''
+    };
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function carregarRascunho(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return;
+    const data = JSON.parse(raw);
+    if(data.lider) document.getElementById('lider_nome').value = data.lider;
+    if(data.dept)  document.getElementById('departamento').value = data.dept;
+    if(data.mes)   document.getElementById('mes_ref').value = data.mes;
+    if(data.colabs){
+      Object.entries(data.colabs).forEach(([i,c]) => {
+        const idx = parseInt(i);
+        if(c.concluida) marcarConcluida(idx, true);
+        if(c.ind) c.ind.forEach((ind,n) => {
+          const ni = n+1;
+          const el_nome = document.querySelector(`[name="c${idx}_ind${ni}_nome"]`);
+          const el_esp  = document.querySelector(`[name="c${idx}_ind${ni}_esp"]`);
+          const el_res  = document.querySelector(`[name="c${idx}_ind${ni}_res"]`);
+          if(el_nome) el_nome.value = ind.nome||'';
+          if(el_esp)  el_esp.value  = ind.esperado||'';
+          if(el_res)  el_res.value  = ind.resultado||'';
+        });
+        ['p1','p2','p3','frase','just'].forEach(k => {
+          const el = document.querySelector(`[name="c${idx}_${k}"]`);
+          if(el && c[k]) el.value = c[k];
+        });
+      });
+    }
+  } catch(e){}
+}
+
+// ── AUTO-SAVE com debounce ───────────────────────────────────────────────────
+let saveTimer;
+function agendarSave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    salvarRascunho();
+    mostrarAutoSave();
+  }, 800);
+}
+function mostrarAutoSave(){
+  document.querySelectorAll('.auto-save-notice').forEach(el => {
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2000);
+  });
+}
+
+// ── PROGRESSO ───────────────────────────────────────────────────────────────
+const concluidas = new Set();
+function atualizarProgresso(){
+  const pct = (concluidas.size / COLABORADORAS.length) * 100;
+  document.getElementById('progFill').style.width = pct+'%';
+  document.getElementById('progLabel').textContent =
+    `${concluidas.size} de ${COLABORADORAS.length} colaboradoras preenchidas`;
+}
+
+// ── MONTAR COLABORADORAS ─────────────────────────────────────────────────────
+const container = document.getElementById('colabs-container');
+COLABORADORAS.forEach((nome, idx) => {
+  const sec = document.createElement('div');
+  sec.className = 'colab-section';
+  sec.id = `cs_${idx}`;
+  sec.innerHTML = `
+    <div class="colab-hdr" onclick="toggleColab(${idx})">
+      <div class="colab-av">${initials(nome)}</div>
+      <div>
+        <div class="colab-name">${nome}</div>
+        <div class="colab-status-txt" id="st_${idx}">Pendente</div>
+      </div>
+      <span class="badge" id="badge_${idx}">Pendente</span>
+      <div class="colab-toggle">⌄</div>
+    </div>
+    <div class="colab-body">
+
+      <div class="sec-label">Bloco 1 — Indicadores do mês</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px;font-style:italic;">Para cada indicador do seu departamento, informe o nome, o número esperado e o resultado da colaboradora.</p>
+      <table class="ind-table">
+        <thead><tr><th style="width:40%">Indicador</th><th style="width:30%">Esperado</th><th style="width:30%">Resultado</th></tr></thead>
+        <tbody>
+          ${[1,2,3].map(n=>`<tr>
+            <td><input type="text" name="c${idx}_ind${n}_nome" placeholder="Nome do indicador" oninput="agendarSave()"></td>
+            <td><input type="text" name="c${idx}_ind${n}_esp"  placeholder="Ex: 30%"           oninput="agendarSave()"></td>
+            <td><input type="text" name="c${idx}_ind${n}_res"  placeholder="Ex: 34%"           oninput="agendarSave()"></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+
+      <div class="divider"></div>
+      <div class="sec-label">Bloco 2 — Comportamento, postura e desenvolvimento</div>
+
+      <div class="pq-card">
+        <div class="pq-num">Pergunta 1</div>
+        <div class="pq-text">Descreva uma situação concreta em que esta colaboradora demonstrou uma postura que você gostaria de ver com mais frequência.</div>
+        <div class="pq-hint">O que ela fez, em que contexto e qual foi o resultado?</div>
+        <textarea name="c${idx}_p1" placeholder="Descreva a situação com detalhes..." oninput="agendarSave()"></textarea>
+      </div>
+      <div class="pq-card amb">
+        <div class="pq-num">Pergunta 2</div>
+        <div class="pq-text">Descreva uma situação em que ela poderia ter agido de forma diferente — uma escolha, conduta ou reação que ficou abaixo do esperado.</div>
+        <div class="pq-hint">O que aconteceu e o que deveria ter sido diferente?</div>
+        <textarea name="c${idx}_p2" placeholder="Descreva a situação com detalhes..." oninput="agendarSave()"></textarea>
+      </div>
+      <div class="pq-card drk">
+        <div class="pq-num">Pergunta 3</div>
+        <div class="pq-text">Qual é a principal habilidade ou comportamento que esta colaboradora precisa desenvolver agora? E o que você, como líder, vai fazer para apoiar esse desenvolvimento?</div>
+        <div class="pq-hint">Escolha apenas um ponto — o mais prioritário.</div>
+        <textarea name="c${idx}_p3" placeholder="Descreva o ponto de desenvolvimento e seu papel como líder..." oninput="agendarSave()"></textarea>
+      </div>
+
+      <div class="divider"></div>
+      <div class="sec-label">Bloco 3 — Visão geral</div>
+
+      <div class="field">
+        <label>Se você tivesse que resumir o mês desta colaboradora em uma frase, qual seria?
+          <span class="hint">Sem pressão de ser imparcial — essa é a sua percepção honesta.</span>
+        </label>
+        <input type="text" name="c${idx}_frase" placeholder="Uma frase sobre o mês dela..." oninput="agendarSave()">
+      </div>
+      <div class="field" style="margin-top:14px;">
+        <label>Justificativa geral do mês
+          <span class="hint">Contexto adicional sobre o desempenho da colaboradora neste período.</span>
+        </label>
+        <textarea name="c${idx}_just" placeholder="Observações finais..." oninput="agendarSave()"></textarea>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;flex-wrap:wrap;gap:10px;">
+        <span class="auto-save-notice" id="save_${idx}">✓ Rascunho salvo</span>
+        <button type="button" onclick="marcarConcluida(${idx})" class="btn-concluir">Marcar como concluída ✓</button>
+      </div>
+    </div>`;
+  container.appendChild(sec);
+});
+
+// ── TOGGLE ───────────────────────────────────────────────────────────────────
+function toggleColab(idx){
+  document.getElementById(`cs_${idx}`).classList.toggle('open');
+}
+
+// ── MARCAR CONCLUÍDA ────────────────────────────────────────────────────────
+function marcarConcluida(idx, silencioso){
+  concluidas.add(idx);
+  document.getElementById(`badge_${idx}`).textContent = 'Concluída';
+  document.getElementById(`badge_${idx}`).className = 'badge done';
+  document.getElementById(`st_${idx}`).textContent = 'Avaliação preenchida';
+  if(!silencioso){
+    document.getElementById(`cs_${idx}`).classList.remove('open');
+    salvarRascunho();
+  }
+  atualizarProgresso();
+}
+
+// ── SUBMIT ───────────────────────────────────────────────────────────────────
+document.getElementById('mainForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  let ok = true;
+  [['lider_nome','err_lider'],['departamento','err_dept'],['mes_ref','err_mes']].forEach(([fid,eid]) => {
+    const el = document.getElementById(fid);
+    const err = document.getElementById(eid);
+    if(!el.value.trim()){el.classList.add('error');err.style.display='block';ok=false;}
+    else{el.classList.remove('error');err.style.display='none';}
+  });
+  if(!ok){window.scrollTo({top:0,behavior:'smooth'});return;}
+
+  const btn = document.getElementById('submitBtn');
+  btn.classList.add('loading');
+  btn.textContent = 'Enviando...';
+
+  const form = document.getElementById('mainForm');
+  const payload = {
+    lider:        document.getElementById('lider_nome').value,
+    departamento: document.getElementById('departamento').value,
+    mes:          document.getElementById('mes_ref').value,
+    timestamp:    new Date().toLocaleString('pt-BR'),
+    colaboradoras: COLABORADORAS.map((nome,idx) => ({
+      nome,
+      indicadores: [1,2,3].map(n => ({
+        nome:      form.elements[`c${idx}_ind${n}_nome`]?.value||'',
+        esperado:  form.elements[`c${idx}_ind${n}_esp`]?.value||'',
+        resultado: form.elements[`c${idx}_ind${n}_res`]?.value||''
+      })).filter(ind => ind.nome.trim()),
+      p1:    form.elements[`c${idx}_p1`]?.value||'',
+      p2:    form.elements[`c${idx}_p2`]?.value||'',
+      p3:    form.elements[`c${idx}_p3`]?.value||'',
+      frase: form.elements[`c${idx}_frase`]?.value||'',
+      just:  form.elements[`c${idx}_just`]?.value||''
+    }))
+  };
+
+  try{
+    await fetch(SCRIPT_URL,{
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    localStorage.removeItem(STORAGE_KEY);
+    document.getElementById('form-screen').style.display='none';
+    document.getElementById('success-screen').style.display='block';
+    window.scrollTo({top:0,behavior:'smooth'});
+  } catch(err){
+    btn.classList.remove('loading');
+    btn.innerHTML = 'Enviar avaliações <span class="btn-amber">→</span>';
+    alert('Erro ao enviar. Verifique sua conexão e tente novamente.');
+  }
+});
+
+// Salvar identificação ao digitar
+['lider_nome','departamento','mes_ref'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', agendarSave);
+  document.getElementById(id)?.addEventListener('change', agendarSave);
+});
+
+// Carregar rascunho ao abrir
+window.addEventListener('DOMContentLoaded', carregarRascunho);
+</script>
+</body>
+</html>
