@@ -114,6 +114,8 @@
   #success-screen h2{font-family:'DM Serif Display',serif;font-size:28px;color:var(--dark);margin-bottom:10px;}
   #success-screen p{font-size:14px;color:var(--muted);line-height:1.7;}
 
+  .esporadico-note{font-size:10px;color:var(--muted);font-style:italic;margin-top:4px;}
+
   @media(max-width:600px){
     .container{padding:16px 16px 48px;}
     .field-row{grid-template-columns:1fr;}
@@ -165,7 +167,7 @@
             </div>
             <div class="field">
               <label>Departamento <span class="req">*</span></label>
-              <select id="departamento" required>
+              <select id="departamento" required onchange="onDepartamentoChange()">
                 <option value="">Selecione</option>
                 <option>Comercial</option><option>Operacional</option><option>Atendimento</option>
                 <option>Marketing</option><option>Recursos Humanos</option><option>Instalações</option>
@@ -198,6 +200,22 @@
         </div>
       </div>
 
+      <!-- OPCIONAIS -->
+      <div class="opcional-section">
+        <div class="opcional-header">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+              <span class="opcional-badge">Opcional</span>
+              <div class="opcional-title">Avaliação de auxiliares</div>
+            </div>
+            <div class="opcional-sub">Preencha apenas se você teve contato ou observações relevantes no mês. Não é obrigatório.</div>
+          </div>
+        </div>
+        <div style="padding:0 14px 14px;">
+          <div id="opcionais-container"></div>
+        </div>
+      </div>
+
       <!-- ENVIO -->
       <div class="submit-area">
         <p>As respostas são salvas automaticamente enquanto você preenche.<br>Quando terminar todas as colaboradoras, clique em enviar.</p>
@@ -217,24 +235,220 @@
 </div>
 
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyDUBSXkNbXhsDibcYTaauxitWSCe2yY2i9k0rIAMq6CkjbMGVuq26iCcZPdevGF4cj/exec';
-const STORAGE_KEY = 'ef_avaliacao_v2';
+const SCRIPT_URL = 'COLE_AQUI_A_URL_DO_APPS_SCRIPT';
+const STORAGE_KEY = 'ef_avaliacao_v3';
 
 const COLABORADORAS = [
-  "Júlia Gabriela Dos Santos",
-  "Wanderlea Dos Santos Da Silveira",
-  "Paula Briani Herculano Nocelli",
-  "Josiane Elena Braz",
-  "Jéssica Pires Santoro Andrade",
-  "Fabricia Filomena de Souza Barbosa",
-  "Simone de Campos Constantino",
-  "Eliziane Goncalves de Moura",
   "Antônio Francisco de Brito Neto",
+  "Beatriz Santos",
+  "Camila Renata Adriano Santos Pereira",
+  "Eliziane Goncalves de Moura",
+  "Fabricia Filomena de Souza Barbosa",
   "Gabriele Vitória Fernandes Martins",
-  "Camila Renata Adriano Santos Pereira"
+  "Josiane Elena Braz",
+  "Júlia Gabriela Dos Santos",
+  "Marcely Ribeiro",
+  "Paula Briani Herculano Nocelli",
+  "Simone de Campos Constantino",
+  "Wanderlea Dos Santos Da Silveira"
 ];
 
+const COLABORADORAS_OPCIONALS = [
+  "Poliana Barbosa",
+  "Vinicius Ortega"
+];
+
+// ── PERGUNTAS PADRÃO (contato direto e frequente) ────────────────────────────
+const PERGUNTAS_PADRAO = {
+  p1_texto: "Descreva uma situação concreta em que esta colaboradora demonstrou uma postura que você gostaria de ver com mais frequência.",
+  p1_hint:  "O que ela fez, em que contexto e qual foi o resultado?",
+  p2_texto: "Descreva uma situação em que ela poderia ter agido de forma diferente — uma escolha, conduta ou reação que ficou abaixo do esperado.",
+  p2_hint:  "O que aconteceu e o que deveria ter sido diferente?",
+  p3_texto: "Qual é a principal habilidade ou comportamento que esta colaboradora precisa desenvolver agora? E o que você, como líder, vai fazer para apoiar esse desenvolvimento?",
+  p3_hint:  "Escolha apenas um ponto — o mais prioritário.",
+  permite_branco: false
+};
+
+// ── PERGUNTAS ADAPTADAS (contato esporádico/indireto — ex: Instalações) ──────
+const PERGUNTAS_ESPORADICO = {
+  p1_texto: "Nos contatos que você teve com esta colaboradora neste mês, descreva uma situação concreta em que ela demonstrou uma postura que você e a sua equipe gostariam de ver com mais frequência.",
+  p1_hint:  "Se não houve contato relevante no mês, pode deixar em branco.",
+  p2_texto: "Nos contatos que você teve, descreva uma situação em que ela poderia ter agido de forma diferente.",
+  p2_hint:  "Se não houve contato relevante no mês, pode deixar em branco.",
+  p3_texto: "Com base no que você observou — mesmo que pontualmente — qual habilidade ou comportamento você recomendaria que ela desenvolvesse? E o que você, como apoio ocasional, pode fazer para contribuir?",
+  p3_hint:  "Pode ser uma recomendação geral, mesmo sem um exemplo específico do mês.",
+  permite_branco: true
+};
+
+// Departamentos que usam o conjunto de perguntas adaptado (contato esporádico)
+const DEPTOS_CONTATO_ESPORADICO = ["Instalações"];
+
+function getPerguntas(departamento) {
+  return DEPTOS_CONTATO_ESPORADICO.includes(departamento) ? PERGUNTAS_ESPORADICO : PERGUNTAS_PADRAO;
+}
+
 function initials(n){const p=n.trim().split(' ');return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase();}
+
+// ── MONTAR/REMONTAR COLABORADORAS CONFORME DEPARTAMENTO ──────────────────────
+let currentDept = '';
+
+function onDepartamentoChange() {
+  const dept = document.getElementById('departamento').value;
+  if (dept === currentDept) return;
+
+  // Preservar respostas já digitadas antes de remontar (caso o usuário troque de depto no meio do preenchimento)
+  salvarRascunho();
+  currentDept = dept;
+  montarColaboradoras(dept);
+  carregarRascunho();
+  agendarSave();
+}
+
+function montarColaboradoras(departamento) {
+  const perguntas = getPerguntas(departamento);
+  const container = document.getElementById('colabs-container');
+  container.innerHTML = '';
+
+  COLABORADORAS.forEach((nome, idx) => {
+    const sec = document.createElement('div');
+    sec.className = 'colab-section';
+    sec.id = `cs_${idx}`;
+
+    const obsBranco = perguntas.permite_branco
+      ? '<div class="esporadico-note">Campo opcional — preencha apenas se houve contato relevante no mês.</div>'
+      : '';
+
+    sec.innerHTML = `
+      <div class="colab-hdr" onclick="toggleColab(${idx})">
+        <div class="colab-av">${initials(nome)}</div>
+        <div>
+          <div class="colab-name">${nome}</div>
+          <div class="colab-status-txt" id="st_${idx}">Pendente</div>
+        </div>
+        <span class="badge" id="badge_${idx}">Pendente</span>
+        <div class="colab-toggle">⌄</div>
+      </div>
+      <div class="colab-body">
+
+        <div class="sec-label">Bloco 1 — Indicadores do mês</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px;font-style:italic;">Para cada indicador do seu departamento, informe o nome, o número esperado e o resultado da colaboradora. Se não houver indicadores aplicáveis, pode deixar em branco.</p>
+        <table class="ind-table">
+          <thead><tr><th style="width:40%">Indicador</th><th style="width:30%">Esperado</th><th style="width:30%">Resultado</th></tr></thead>
+          <tbody>
+            ${[1,2,3].map(n=>`<tr>
+              <td><input type="text" name="c${idx}_ind${n}_nome" placeholder="Nome do indicador" oninput="agendarSave()"></td>
+              <td><input type="text" name="c${idx}_ind${n}_esp"  placeholder="Ex: 30%"           oninput="agendarSave()"></td>
+              <td><input type="text" name="c${idx}_ind${n}_res"  placeholder="Ex: 34%"           oninput="agendarSave()"></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+
+        <div class="divider"></div>
+        <div class="sec-label">Bloco 2 — Comportamento, postura e desenvolvimento</div>
+
+        <div class="pq-card">
+          <div class="pq-num">Pergunta 1</div>
+          <div class="pq-text">${perguntas.p1_texto}</div>
+          <div class="pq-hint">${perguntas.p1_hint}</div>
+          ${obsBranco}
+          <textarea name="c${idx}_p1" placeholder="Descreva a situação com detalhes..." oninput="agendarSave()"></textarea>
+        </div>
+        <div class="pq-card amb">
+          <div class="pq-num">Pergunta 2</div>
+          <div class="pq-text">${perguntas.p2_texto}</div>
+          <div class="pq-hint">${perguntas.p2_hint}</div>
+          ${obsBranco}
+          <textarea name="c${idx}_p2" placeholder="Descreva a situação com detalhes..." oninput="agendarSave()"></textarea>
+        </div>
+        <div class="pq-card drk">
+          <div class="pq-num">Pergunta 3</div>
+          <div class="pq-text">${perguntas.p3_texto}</div>
+          <div class="pq-hint">${perguntas.p3_hint}</div>
+          <textarea name="c${idx}_p3" placeholder="Descreva o ponto de desenvolvimento..." oninput="agendarSave()"></textarea>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sec-label">Bloco 3 — Visão geral</div>
+
+        <div class="field">
+          <label>Se você tivesse que resumir o mês desta colaboradora em uma frase, qual seria?
+            <span class="hint">Sem pressão de ser imparcial — essa é a sua percepção honesta.</span>
+          </label>
+          <input type="text" name="c${idx}_frase" placeholder="Uma frase sobre o mês dela..." oninput="agendarSave()">
+        </div>
+        <div class="field" style="margin-top:14px;">
+          <label>Justificativa geral do mês
+            <span class="hint">Contexto adicional sobre o desempenho da colaboradora neste período.</span>
+          </label>
+          <textarea name="c${idx}_just" placeholder="Observações finais..." oninput="agendarSave()"></textarea>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;flex-wrap:wrap;gap:10px;">
+          <span class="auto-save-notice" id="save_${idx}">✓ Rascunho salvo</span>
+          <button type="button" onclick="marcarConcluida(${idx})" class="btn-concluir">Marcar como concluída ✓</button>
+        </div>
+      </div>`;
+    container.appendChild(sec);
+  });
+}
+
+// Monta com o conjunto padrão por default (antes de escolher departamento)
+montarColaboradoras('');
+
+function montarOpcionais() {
+  const container = document.getElementById('opcionais-container');
+  container.innerHTML = '';
+  COLABORADORAS_OPCIONALS.forEach((nome, idx) => {
+    const sec = document.createElement('div');
+    sec.className = 'colab-section';
+    sec.id = 'opt_' + idx;
+    sec.innerHTML = `
+      <div class="colab-hdr" onclick="toggleOpt(${idx})">
+        <div class="colab-av" style="background:var(--amber);opacity:0.7;">${initials(nome)}</div>
+        <div>
+          <div class="colab-name">${nome}</div>
+          <div class="colab-status-txt" id="opt_st_${idx}">Opcional — preencha se tiver contato no mês</div>
+        </div>
+        <span class="badge" id="opt_badge_${idx}">Opcional</span>
+        <div class="colab-toggle">⏄</div>
+      </div>
+      <div class="colab-body">
+        <div class="opcional-notice">Este campo é opcional. Preencha apenas se você teve contato ou observações relevantes sobre esta pessoa no mês.</div>
+        <div class="divider"></div>
+        <div class="sec-label">Observações gerais</div>
+        <div class="pq-card">
+          <div class="pq-num">Ponto positivo</div>
+          <div class="pq-text">Descreva algo positivo que você observou nesta pessoa no mês, se houver.</div>
+          <div class="pq-hint">Deixe em branco se não tiver informação relevante.</div>
+          <textarea name="opt${idx}_p1" placeholder="Observação positiva..." oninput="agendarSave()"></textarea>
+        </div>
+        <div class="pq-card amb">
+          <div class="pq-num">Ponto de atenção</div>
+          <div class="pq-text">Descreva algo que poderia ter sido diferente, se houver.</div>
+          <div class="pq-hint">Deixe em branco se não tiver informação relevante.</div>
+          <textarea name="opt${idx}_p2" placeholder="Ponto de atenção..." oninput="agendarSave()"></textarea>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;margin-top:12px;">
+          <button type="button" onclick="marcarOpcionalFeito(${idx})" class="btn-concluir">Marcar como preenchido ✓</button>
+        </div>
+      </div>`;
+    container.appendChild(sec);
+  });
+}
+montarOpcionais();
+
+function toggleOpt(idx) {
+  document.getElementById('opt_' + idx).classList.toggle('open');
+}
+
+function marcarOpcionalFeito(idx) {
+  const badge = document.getElementById('opt_badge_' + idx);
+  const st = document.getElementById('opt_st_' + idx);
+  if (badge) { badge.textContent = 'Preenchido'; badge.className = 'badge done'; }
+  if (st) st.textContent = 'Observações registradas';
+  document.getElementById('opt_' + idx)?.classList.remove('open');
+  salvarRascunho();
+}
 
 // ── SALVAR / CARREGAR RASCUNHO ───────────────────────────────────────────────
 function salvarRascunho(){
@@ -268,8 +482,14 @@ function carregarRascunho(){
     if(!raw) return;
     const data = JSON.parse(raw);
     if(data.lider) document.getElementById('lider_nome').value = data.lider;
-    if(data.dept)  document.getElementById('departamento').value = data.dept;
     if(data.mes)   document.getElementById('mes_ref').value = data.mes;
+    if(data.dept){
+      document.getElementById('departamento').value = data.dept;
+      if (data.dept !== currentDept) {
+        currentDept = data.dept;
+        montarColaboradoras(data.dept);
+      }
+    }
     if(data.colabs){
       Object.entries(data.colabs).forEach(([i,c]) => {
         const idx = parseInt(i);
@@ -317,83 +537,6 @@ function atualizarProgresso(){
     `${concluidas.size} de ${COLABORADORAS.length} colaboradoras preenchidas`;
 }
 
-// ── MONTAR COLABORADORAS ─────────────────────────────────────────────────────
-const container = document.getElementById('colabs-container');
-COLABORADORAS.forEach((nome, idx) => {
-  const sec = document.createElement('div');
-  sec.className = 'colab-section';
-  sec.id = `cs_${idx}`;
-  sec.innerHTML = `
-    <div class="colab-hdr" onclick="toggleColab(${idx})">
-      <div class="colab-av">${initials(nome)}</div>
-      <div>
-        <div class="colab-name">${nome}</div>
-        <div class="colab-status-txt" id="st_${idx}">Pendente</div>
-      </div>
-      <span class="badge" id="badge_${idx}">Pendente</span>
-      <div class="colab-toggle">⌄</div>
-    </div>
-    <div class="colab-body">
-
-      <div class="sec-label">Bloco 1 — Indicadores do mês</div>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:12px;font-style:italic;">Para cada indicador do seu departamento, informe o nome, o número esperado e o resultado da colaboradora.</p>
-      <table class="ind-table">
-        <thead><tr><th style="width:40%">Indicador</th><th style="width:30%">Esperado</th><th style="width:30%">Resultado</th></tr></thead>
-        <tbody>
-          ${[1,2,3].map(n=>`<tr>
-            <td><input type="text" name="c${idx}_ind${n}_nome" placeholder="Nome do indicador" oninput="agendarSave()"></td>
-            <td><input type="text" name="c${idx}_ind${n}_esp"  placeholder="Ex: 30%"           oninput="agendarSave()"></td>
-            <td><input type="text" name="c${idx}_ind${n}_res"  placeholder="Ex: 34%"           oninput="agendarSave()"></td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-
-      <div class="divider"></div>
-      <div class="sec-label">Bloco 2 — Comportamento, postura e desenvolvimento</div>
-
-      <div class="pq-card">
-        <div class="pq-num">Pergunta 1</div>
-        <div class="pq-text">Descreva uma situação concreta em que esta colaboradora demonstrou uma postura que você gostaria de ver com mais frequência.</div>
-        <div class="pq-hint">O que ela fez, em que contexto e qual foi o resultado?</div>
-        <textarea name="c${idx}_p1" placeholder="Descreva a situação com detalhes..." oninput="agendarSave()"></textarea>
-      </div>
-      <div class="pq-card amb">
-        <div class="pq-num">Pergunta 2</div>
-        <div class="pq-text">Descreva uma situação em que ela poderia ter agido de forma diferente — uma escolha, conduta ou reação que ficou abaixo do esperado.</div>
-        <div class="pq-hint">O que aconteceu e o que deveria ter sido diferente?</div>
-        <textarea name="c${idx}_p2" placeholder="Descreva a situação com detalhes..." oninput="agendarSave()"></textarea>
-      </div>
-      <div class="pq-card drk">
-        <div class="pq-num">Pergunta 3</div>
-        <div class="pq-text">Qual é a principal habilidade ou comportamento que esta colaboradora precisa desenvolver agora? E o que você, como líder, vai fazer para apoiar esse desenvolvimento?</div>
-        <div class="pq-hint">Escolha apenas um ponto — o mais prioritário.</div>
-        <textarea name="c${idx}_p3" placeholder="Descreva o ponto de desenvolvimento e seu papel como líder..." oninput="agendarSave()"></textarea>
-      </div>
-
-      <div class="divider"></div>
-      <div class="sec-label">Bloco 3 — Visão geral</div>
-
-      <div class="field">
-        <label>Se você tivesse que resumir o mês desta colaboradora em uma frase, qual seria?
-          <span class="hint">Sem pressão de ser imparcial — essa é a sua percepção honesta.</span>
-        </label>
-        <input type="text" name="c${idx}_frase" placeholder="Uma frase sobre o mês dela..." oninput="agendarSave()">
-      </div>
-      <div class="field" style="margin-top:14px;">
-        <label>Justificativa geral do mês
-          <span class="hint">Contexto adicional sobre o desempenho da colaboradora neste período.</span>
-        </label>
-        <textarea name="c${idx}_just" placeholder="Observações finais..." oninput="agendarSave()"></textarea>
-      </div>
-
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;flex-wrap:wrap;gap:10px;">
-        <span class="auto-save-notice" id="save_${idx}">✓ Rascunho salvo</span>
-        <button type="button" onclick="marcarConcluida(${idx})" class="btn-concluir">Marcar como concluída ✓</button>
-      </div>
-    </div>`;
-  container.appendChild(sec);
-});
-
 // ── TOGGLE ───────────────────────────────────────────────────────────────────
 function toggleColab(idx){
   document.getElementById(`cs_${idx}`).classList.toggle('open');
@@ -402,11 +545,12 @@ function toggleColab(idx){
 // ── MARCAR CONCLUÍDA ────────────────────────────────────────────────────────
 function marcarConcluida(idx, silencioso){
   concluidas.add(idx);
-  document.getElementById(`badge_${idx}`).textContent = 'Concluída';
-  document.getElementById(`badge_${idx}`).className = 'badge done';
-  document.getElementById(`st_${idx}`).textContent = 'Avaliação preenchida';
+  const badge = document.getElementById(`badge_${idx}`);
+  const st = document.getElementById(`st_${idx}`);
+  if (badge) { badge.textContent = 'Concluída'; badge.className = 'badge done'; }
+  if (st) st.textContent = 'Avaliação preenchida';
   if(!silencioso){
-    document.getElementById(`cs_${idx}`).classList.remove('open');
+    document.getElementById(`cs_${idx}`)?.classList.remove('open');
     salvarRascunho();
   }
   atualizarProgresso();
@@ -429,9 +573,10 @@ document.getElementById('mainForm').addEventListener('submit', async function(e)
   btn.textContent = 'Enviando...';
 
   const form = document.getElementById('mainForm');
+  const departamento = document.getElementById('departamento').value;
   const payload = {
     lider:        document.getElementById('lider_nome').value,
-    departamento: document.getElementById('departamento').value,
+    departamento: departamento,
     mes:          document.getElementById('mes_ref').value,
     timestamp:    new Date().toLocaleString('pt-BR'),
     colaboradoras: COLABORADORAS.map((nome,idx) => ({
@@ -446,7 +591,12 @@ document.getElementById('mainForm').addEventListener('submit', async function(e)
       p3:    form.elements[`c${idx}_p3`]?.value||'',
       frase: form.elements[`c${idx}_frase`]?.value||'',
       just:  form.elements[`c${idx}_just`]?.value||''
-    }))
+    })),
+    opcionais: COLABORADORAS_OPCIONALS.map((nome, idx) => ({
+      nome,
+      p1: form.elements['opt' + idx + '_p1']?.value || '',
+      p2: form.elements['opt' + idx + '_p2']?.value || ''
+    })).filter(o => o.p1.trim() || o.p2.trim())
   };
 
   try{
@@ -467,7 +617,7 @@ document.getElementById('mainForm').addEventListener('submit', async function(e)
 });
 
 // Salvar identificação ao digitar
-['lider_nome','departamento','mes_ref'].forEach(id => {
+['lider_nome','mes_ref'].forEach(id => {
   document.getElementById(id)?.addEventListener('input', agendarSave);
   document.getElementById(id)?.addEventListener('change', agendarSave);
 });
